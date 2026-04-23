@@ -762,7 +762,6 @@ wheels = [
 
 [[package]]
 name = "pocketflow-observe"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "pocketflow" },
@@ -822,7 +821,7 @@ requires-dist = [
     { name = "rich", marker = "extra == 'logging'", specifier = ">=13.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
 ]
-provides-extras = ["logging", "tracing", "full", "dev"]
+provides-extras = ["dev", "full", "logging", "tracing"]
 
 [package.metadata.requires-dev]
 dev = [
