@@ -1,0 +1,107 @@
+# pyproject.toml — decorator-based logging + Langfuse tracing for PocketFlow.
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pocketflow-observe"
+version = "0.1.0"
+description = "Decorator-based logging and Langfuse tracing for PocketFlow."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "sevesogit" },
+]
+keywords = ["pocketflow", "llm", "agents", "langfuse", "observability", "tracing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# Core runtime dependency: pocketflow.
+# rich and langfuse are soft — see extras.
+dependencies = [
+    "pocketflow>=0.0.3",
+]
+
+[project.optional-dependencies]
+# Pretty console logs via Rich
+logging = ["rich>=13.0"]
+# Langfuse OTEL tracing
+tracing = ["langfuse>=3.3.1"]
+# Both
+full = ["rich>=13.0", "langfuse>=3.3.1"]
+# For pip users wanting dev tools
+dev = [
+    "rich>=13.0",
+    "langfuse>=3.3.1",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.0",
+]
+
+# For uv users: `uv sync` installs this group by default.
+[dependency-groups]
+dev = [
+    "rich>=13.0",
+    "langfuse>=3.3.1",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sevesogit/pocketflow-observe"
+Repository = "https://github.com/sevesogit/pocketflow-observe"
+Issues = "https://github.com/sevesogit/pocketflow-observe/issues"
+
+# ----------------------------------------------------------------------------
+# Build config
+# ----------------------------------------------------------------------------
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pocketflow_observe"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/pocketflow_observe",
+    "tests",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "pyproject.toml",
+]
+
+# ----------------------------------------------------------------------------
+# Tooling
+# ----------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests commonly use one-line class bodies like `class F(Flow): pass`
+"tests/**/*.py" = ["B018", "SLF001", "E701"]
