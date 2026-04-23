@@ -62,6 +62,7 @@ def _init_langfuse() -> tuple:
 
     try:
         from langfuse import get_client  # type: ignore
+
         has_langfuse = True
     except ImportError:
         has_langfuse = False
@@ -125,6 +126,7 @@ def flush() -> None:
 # trace_llm — nested-generation helper
 # ---------------------------------------------------------------------------
 
+
 def trace_llm(
     name: str,
     model: str,
@@ -145,8 +147,12 @@ def trace_llm(
     if not _ENABLED or _langfuse is None:
         return
 
-    start_kwargs: Dict[str, Any] = {"as_type": as_type, "name": name,
-                                    "model": model, "input": input}
+    start_kwargs: Dict[str, Any] = {
+        "as_type": as_type,
+        "name": name,
+        "model": model,
+        "input": input,
+    }
     if model_parameters:
         start_kwargs["model_parameters"] = model_parameters
 
@@ -175,6 +181,7 @@ NodeHook = Callable[[Any, Dict[str, Any], Optional[str], float], Dict[str, Any]]
 # The decorator
 # ---------------------------------------------------------------------------
 
+
 def trace_flow(
     flow_name: Optional[str] = None,
     *,
@@ -185,16 +192,12 @@ def trace_flow(
     release: Resolvable = None,
     version: Resolvable = None,
     metadata: Resolvable = None,  # dict or callable
-
     # Flow-level span attributes
     flow_type: str = "chain",
-
     # Per-node observation-type overrides: {"ClassName": "tool"}
     node_types: Optional[Dict[str, str]] = None,
-
     # Per-node hook — lets users enrich every node's span
     node_hook: Optional[NodeHook] = None,
-
     # IO capture — turn off if shared contains secrets or huge payloads
     capture_input: bool = True,
     capture_output: bool = True,
@@ -229,9 +232,14 @@ def trace_flow(
 
                 async def wrapped(shared: Dict[str, Any]) -> Any:
                     return await _run_node_with_trace_async(
-                        node, shared, original,
-                        node_types, node_hook,
-                        capture_input, capture_output, max_payload_len,
+                        node,
+                        shared,
+                        original,
+                        node_types,
+                        node_hook,
+                        capture_input,
+                        capture_output,
+                        max_payload_len,
                     )
 
                 node._run_async = wrapped
@@ -240,9 +248,14 @@ def trace_flow(
 
                 def wrapped(shared: Dict[str, Any]) -> Any:
                     return _run_node_with_trace(
-                        node, shared, original,
-                        node_types, node_hook,
-                        capture_input, capture_output, max_payload_len,
+                        node,
+                        shared,
+                        original,
+                        node_types,
+                        node_hook,
+                        capture_input,
+                        capture_output,
+                        max_payload_len,
                     )
 
                 node._run = wrapped
@@ -269,10 +282,20 @@ def trace_flow(
                 if not _ENABLED:
                     return await original_flow_run_async(self, shared)
                 return await _run_flow_traced_async(
-                    self, shared, original_flow_run_async,
-                    display_name, flow_type,
-                    session_id, user_id, tags, release, version, metadata,
-                    capture_input, capture_output, max_payload_len,
+                    self,
+                    shared,
+                    original_flow_run_async,
+                    display_name,
+                    flow_type,
+                    session_id,
+                    user_id,
+                    tags,
+                    release,
+                    version,
+                    metadata,
+                    capture_input,
+                    capture_output,
+                    max_payload_len,
                 )
 
             cls.run_async = new_run_async  # type: ignore[method-assign]
@@ -285,10 +308,20 @@ def trace_flow(
                 if not _ENABLED:
                     return original_flow_run(self, shared)
                 return _run_flow_traced(
-                    self, shared, original_flow_run,
-                    display_name, flow_type,
-                    session_id, user_id, tags, release, version, metadata,
-                    capture_input, capture_output, max_payload_len,
+                    self,
+                    shared,
+                    original_flow_run,
+                    display_name,
+                    flow_type,
+                    session_id,
+                    user_id,
+                    tags,
+                    release,
+                    version,
+                    metadata,
+                    capture_input,
+                    capture_output,
+                    max_payload_len,
                 )
 
             cls.run = new_run  # type: ignore[method-assign]
@@ -301,6 +334,7 @@ def trace_flow(
 # ---------------------------------------------------------------------------
 # Flow-level tracing (sync + async)
 # ---------------------------------------------------------------------------
+
 
 def _build_trace_attrs(
     shared: Dict[str, Any],
@@ -328,23 +362,32 @@ def _build_trace_attrs(
 
 
 def _run_flow_traced(
-    self: Any, shared: Dict[str, Any], original_run: Callable,
-    display_name: str, flow_type: str,
-    session_id: Resolvable, user_id: Resolvable, tags: Resolvable,
-    release: Resolvable, version: Resolvable, metadata: Resolvable,
-    capture_input: bool, capture_output: bool, max_payload_len: int,
+    self: Any,
+    shared: Dict[str, Any],
+    original_run: Callable,
+    display_name: str,
+    flow_type: str,
+    session_id: Resolvable,
+    user_id: Resolvable,
+    tags: Resolvable,
+    release: Resolvable,
+    version: Resolvable,
+    metadata: Resolvable,
+    capture_input: bool,
+    capture_output: bool,
+    max_payload_len: int,
 ) -> Any:
     from langfuse import propagate_attributes  # type: ignore
 
-    trace_attrs = _build_trace_attrs(
-        shared, session_id, user_id, tags, release, version, metadata
-    )
+    trace_attrs = _build_trace_attrs(shared, session_id, user_id, tags, release, version, metadata)
 
     # propagate_attributes applies user_id/session_id/tags to every nested
     # observation automatically — we don't need to thread them through.
-    propagate_kwargs = {k: v for k, v in trace_attrs.items() if k in {
-        "session_id", "user_id", "tags", "release", "version", "metadata"
-    }}
+    propagate_kwargs = {
+        k: v
+        for k, v in trace_attrs.items()
+        if k in {"session_id", "user_id", "tags", "release", "version", "metadata"}
+    }
 
     start_kwargs: Dict[str, Any] = {"as_type": flow_type, "name": display_name}
     if capture_input:
@@ -369,20 +412,29 @@ def _run_flow_traced(
 
 
 async def _run_flow_traced_async(
-    self: Any, shared: Dict[str, Any], original_run: Callable,
-    display_name: str, flow_type: str,
-    session_id: Resolvable, user_id: Resolvable, tags: Resolvable,
-    release: Resolvable, version: Resolvable, metadata: Resolvable,
-    capture_input: bool, capture_output: bool, max_payload_len: int,
+    self: Any,
+    shared: Dict[str, Any],
+    original_run: Callable,
+    display_name: str,
+    flow_type: str,
+    session_id: Resolvable,
+    user_id: Resolvable,
+    tags: Resolvable,
+    release: Resolvable,
+    version: Resolvable,
+    metadata: Resolvable,
+    capture_input: bool,
+    capture_output: bool,
+    max_payload_len: int,
 ) -> Any:
     from langfuse import propagate_attributes  # type: ignore
 
-    trace_attrs = _build_trace_attrs(
-        shared, session_id, user_id, tags, release, version, metadata
-    )
-    propagate_kwargs = {k: v for k, v in trace_attrs.items() if k in {
-        "session_id", "user_id", "tags", "release", "version", "metadata"
-    }}
+    trace_attrs = _build_trace_attrs(shared, session_id, user_id, tags, release, version, metadata)
+    propagate_kwargs = {
+        k: v
+        for k, v in trace_attrs.items()
+        if k in {"session_id", "user_id", "tags", "release", "version", "metadata"}
+    }
 
     start_kwargs: Dict[str, Any] = {"as_type": flow_type, "name": display_name}
     if capture_input:
@@ -410,11 +462,16 @@ async def _run_flow_traced_async(
 # Per-node tracing (sync + async)
 # ---------------------------------------------------------------------------
 
+
 def _run_node_with_trace(
-    node: Any, shared: Dict[str, Any], original: Callable,
+    node: Any,
+    shared: Dict[str, Any],
+    original: Callable,
     node_types: Optional[Dict[str, str]],
     node_hook: Optional[NodeHook],
-    capture_input: bool, capture_output: bool, max_payload_len: int,
+    capture_input: bool,
+    capture_output: bool,
+    max_payload_len: int,
 ) -> Any:
     if not _ENABLED:
         return original(shared)
@@ -458,10 +515,14 @@ def _run_node_with_trace(
 
 
 async def _run_node_with_trace_async(
-    node: Any, shared: Dict[str, Any], original: Callable,
+    node: Any,
+    shared: Dict[str, Any],
+    original: Callable,
     node_types: Optional[Dict[str, str]],
     node_hook: Optional[NodeHook],
-    capture_input: bool, capture_output: bool, max_payload_len: int,
+    capture_input: bool,
+    capture_output: bool,
+    max_payload_len: int,
 ) -> Any:
     if not _ENABLED:
         return await original(shared)
@@ -503,6 +564,7 @@ async def _run_node_with_trace_async(
 # helpers
 # ---------------------------------------------------------------------------
 
+
 def _merge_update(base: Dict[str, Any], extra: Dict[str, Any]) -> None:
     """Merge a hook-returned dict into the span.update() kwargs.
     `metadata` is deep-merged; everything else is overwritten.
@@ -523,6 +585,7 @@ def _bounded(obj: Any, max_len: int) -> Any:
 # ---------------------------------------------------------------------------
 # trace_node — observe a single node with Langfuse, without needing a Flow
 # ---------------------------------------------------------------------------
+
 
 def trace_node(
     target: Any = None,
@@ -559,18 +622,24 @@ def trace_node(
     def _apply(obj: Any) -> Any:
         if isinstance(obj, type):
             return _wrap_tracing_class(
-                obj, observation_type, node_hook,
-                capture_input, capture_output, max_payload_len,
+                obj,
+                observation_type,
+                node_hook,
+                capture_input,
+                capture_output,
+                max_payload_len,
             )
         _wrap_tracing_instance(
-            obj, observation_type, node_hook,
-            capture_input, capture_output, max_payload_len,
+            obj,
+            observation_type,
+            node_hook,
+            capture_input,
+            capture_output,
+            max_payload_len,
         )
         return obj
 
-    if target is not None and (
-        isinstance(target, type) or _looks_like_node_instance(target)
-    ):
+    if target is not None and (isinstance(target, type) or _looks_like_node_instance(target)):
         return _apply(target)
 
     def decorator(obj: Any) -> Any:
@@ -580,17 +649,16 @@ def trace_node(
 
 
 def _looks_like_node_instance(obj: Any) -> bool:
-    return (
-        not isinstance(obj, type)
-        and (hasattr(obj, "_run") or hasattr(obj, "_run_async"))
-    )
+    return not isinstance(obj, type) and (hasattr(obj, "_run") or hasattr(obj, "_run_async"))
 
 
 def _wrap_tracing_class(
     cls: Type,
     obs_type_override: Optional[str],
     node_hook: Optional[NodeHook],
-    capture_input: bool, capture_output: bool, max_payload_len: int,
+    capture_input: bool,
+    capture_output: bool,
+    max_payload_len: int,
 ) -> Type:
     # If an explicit type was given, stash it as a class attribute so the
     # normal resolver (_core.node_observation_type) picks it up.
@@ -603,8 +671,14 @@ def _wrap_tracing_class(
         async def wrapped(self: Any, shared: Dict[str, Any]) -> Any:
             bound = lambda s: original(self, s)  # noqa: E731
             return await _run_node_with_trace_async(
-                self, shared, bound, None, node_hook,
-                capture_input, capture_output, max_payload_len,
+                self,
+                shared,
+                bound,
+                None,
+                node_hook,
+                capture_input,
+                capture_output,
+                max_payload_len,
             )
 
         cls._run_async = wrapped  # type: ignore[attr-defined]
@@ -615,8 +689,14 @@ def _wrap_tracing_class(
         def wrapped_sync(self: Any, shared: Dict[str, Any]) -> Any:
             bound = lambda s: original_sync(self, s)  # noqa: E731
             return _run_node_with_trace(
-                self, shared, bound, None, node_hook,
-                capture_input, capture_output, max_payload_len,
+                self,
+                shared,
+                bound,
+                None,
+                node_hook,
+                capture_input,
+                capture_output,
+                max_payload_len,
             )
 
         cls._run = wrapped_sync  # type: ignore[attr-defined]
@@ -628,7 +708,9 @@ def _wrap_tracing_instance(
     node: Any,
     obs_type_override: Optional[str],
     node_hook: Optional[NodeHook],
-    capture_input: bool, capture_output: bool, max_payload_len: int,
+    capture_input: bool,
+    capture_output: bool,
+    max_payload_len: int,
 ) -> None:
     if getattr(node, "__pocketflow_observe_trace_wrapped__", False):
         return
@@ -642,8 +724,14 @@ def _wrap_tracing_instance(
 
         async def wrapped(shared: Dict[str, Any]) -> Any:
             return await _run_node_with_trace_async(
-                node, shared, original, None, node_hook,
-                capture_input, capture_output, max_payload_len,
+                node,
+                shared,
+                original,
+                None,
+                node_hook,
+                capture_input,
+                capture_output,
+                max_payload_len,
             )
 
         node._run_async = wrapped
@@ -653,8 +741,14 @@ def _wrap_tracing_instance(
 
         def wrapped_sync(shared: Dict[str, Any]) -> Any:
             return _run_node_with_trace(
-                node, shared, original_sync, None, node_hook,
-                capture_input, capture_output, max_payload_len,
+                node,
+                shared,
+                original_sync,
+                None,
+                node_hook,
+                capture_input,
+                capture_output,
+                max_payload_len,
             )
 
         node._run = wrapped_sync

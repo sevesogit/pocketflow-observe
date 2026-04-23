@@ -1,14 +1,19 @@
 """Tests for decorator-based API against vanilla pocketflow."""
+
 from __future__ import annotations
+
+import logging
 
 from pocketflow import Flow, Node
 
 from pocketflow_observe import is_enabled, log_flow, trace_flow, trace_llm
 from pocketflow_observe._core import node_observation_type, resolve
+from pocketflow_observe.tracing import _init_langfuse
 
 # ---------------------------------------------------------------------------
 # core helpers
 # ---------------------------------------------------------------------------
+
 
 def test_resolve_literal():
     assert resolve("hello", {}) == "hello"
@@ -28,17 +33,21 @@ def test_resolve_callable_without_args():
 def test_node_observation_type_class_attr():
     class N(Node):
         observation_type = "tool"
+
     assert node_observation_type(N()) == "tool"
 
 
 def test_node_observation_type_default():
-    class N(Node): pass
+    class N(Node):
+        pass
+
     assert node_observation_type(N()) == "span"
 
 
 def test_node_observation_type_override_wins():
     class N(Node):
         observation_type = "tool"
+
     # Override by class name
     assert node_observation_type(N(), {"N": "agent"}) == "agent"
 
@@ -47,17 +56,23 @@ def test_node_observation_type_override_wins():
 # log_flow decorator on vanilla pocketflow
 # ---------------------------------------------------------------------------
 
+
 class _Hello(Node):
-    def exec(self, _): return "hi"
-    def post(self, shared, prep_res, exec_res): shared["out"] = exec_res
+    def exec(self, _):
+        return "hi"
+
+    def post(self, shared, prep_res, exec_res):
+        shared["out"] = exec_res
 
 
 def test_log_flow_runs_flow_and_populates_shared(caplog):
     import logging
+
     caplog.set_level(logging.INFO)
 
     @log_flow(flow_name="TestFlow")
-    class F(Flow): pass
+    class F(Flow):
+        pass
 
     shared = {}
     F(start=_Hello()).run(shared)
@@ -71,10 +86,12 @@ def test_log_flow_runs_flow_and_populates_shared(caplog):
 
 def test_log_flow_without_name_uses_class_name(caplog):
     import logging
+
     caplog.set_level(logging.INFO)
 
     @log_flow()
-    class MyCoolFlow(Flow): pass
+    class MyCoolFlow(Flow):
+        pass
 
     MyCoolFlow(start=_Hello()).run({})
     assert any("MyCoolFlow" in r.message for r in caplog.records)
@@ -84,12 +101,14 @@ def test_log_flow_without_name_uses_class_name(caplog):
 # trace_flow decorator — no-op safety without Langfuse
 # ---------------------------------------------------------------------------
 
+
 def test_trace_flow_no_op_without_langfuse():
     # Tests run without LANGFUSE_PUBLIC_KEY → is_enabled() is False
     assert is_enabled() is False
 
     @trace_flow(flow_name="T")
-    class F(Flow): pass
+    class F(Flow):
+        pass
 
     shared = {}
     # Must not raise, must still run the flow normally
@@ -100,8 +119,12 @@ def test_trace_flow_no_op_without_langfuse():
 def test_trace_llm_is_safe_when_disabled():
     # Calling helper outside a Flow, with tracing off — must not crash
     trace_llm(
-        name="test", model="m", input="i", output="o",
-        usage_details={"input": 10}, cost_details={"input": 0.01},
+        name="test",
+        model="m",
+        input="i",
+        output="o",
+        usage_details={"input": 10},
+        cost_details={"input": 0.01},
     )
 
 
@@ -109,14 +132,17 @@ def test_trace_llm_is_safe_when_disabled():
 # Decorator composition
 # ---------------------------------------------------------------------------
 
+
 def test_decorators_compose_in_either_order():
     @trace_flow()
     @log_flow()
-    class F1(Flow): pass
+    class F1(Flow):
+        pass
 
     @log_flow()
     @trace_flow()
-    class F2(Flow): pass
+    class F2(Flow):
+        pass
 
     shared1, shared2 = {}, {}
     F1(start=_Hello()).run(shared1)
@@ -136,7 +162,8 @@ def test_decorators_dont_break_flow_routing():
 
     @trace_flow()
     @log_flow()
-    class F(Flow): pass
+    class F(Flow):
+        pass
 
     a, b = A(), B()
     a - "go" >> b
@@ -161,7 +188,8 @@ def test_decorators_preserve_retry_behaviour():
             shared["result"] = exec_res
 
     @log_flow()
-    class F(Flow): pass
+    class F(Flow):
+        pass
 
     n = Flaky()
     shared = {}
@@ -174,17 +202,20 @@ def test_decorators_preserve_retry_behaviour():
 # Node hook
 # ---------------------------------------------------------------------------
 
+
 def test_node_hook_is_called_even_when_tracing_disabled():
     # The hook only runs inside tracing wrapper; skip if disabled.
     # Here we just verify tracing disabled doesn't crash when a hook is provided.
 
     calls = []
+
     def hook(node, shared, action, elapsed):
         calls.append(type(node).__name__)
         return {"metadata": {"attempt": 1}}
 
     @trace_flow(node_hook=hook)
-    class F(Flow): pass
+    class F(Flow):
+        pass
 
     F(start=_Hello()).run({})
     # When tracing is off, the hook is not called. That's intentional —
@@ -196,6 +227,7 @@ def test_node_hook_is_called_even_when_tracing_disabled():
 # No subclassing of pocketflow required — minimal import surface
 # ---------------------------------------------------------------------------
 
+
 def test_node_can_declare_observation_type_without_importing_pocketflow_observe():
     # User code: imports only from pocketflow
     from pocketflow import Node as PFNode
@@ -203,7 +235,8 @@ def test_node_can_declare_observation_type_without_importing_pocketflow_observe(
     class MyTool(PFNode):
         observation_type = "tool"  # just a string, no pocketflow-observe dep
 
-        def exec(self, _): return "tool-result"
+        def exec(self, _):
+            return "tool-result"
 
     # pocketflow-observe reads the class attribute at decoration time
     assert node_observation_type(MyTool()) == "tool"
@@ -212,6 +245,7 @@ def test_node_can_declare_observation_type_without_importing_pocketflow_observe(
 # ---------------------------------------------------------------------------
 # log_node — single-node observation
 # ---------------------------------------------------------------------------
+
 
 def test_log_node_as_bare_class_decorator(caplog):
     import logging as stdlog
@@ -222,14 +256,16 @@ def test_log_node_as_bare_class_decorator(caplog):
 
     @log_node
     class N(Node):
-        def exec(self, _): return "x"
-        def post(self, s, p, e): s["r"] = e
+        def exec(self, _):
+            return "x"
+
+        def post(self, s, p, e):
+            s["r"] = e
 
     shared = {}
     N().run(shared)
     assert shared["r"] == "x"
-    assert any("N" in r.message and "node" in r.message.lower()
-               for r in caplog.records)
+    assert any("N" in r.message and "node" in r.message.lower() for r in caplog.records)
 
 
 def test_log_node_with_args(caplog):
@@ -241,12 +277,14 @@ def test_log_node_with_args(caplog):
 
     @log_node(capture_phases=False)
     class N(Node):
-        def exec(self, _): return "x"
+        def exec(self, _):
+            return "x"
 
     N().run({})
     # capture_phases=False means no prep/exec/post DEBUG lines
-    debug_phase_lines = [r for r in caplog.records
-                         if r.levelname == "DEBUG" and ".exec" in r.message]
+    debug_phase_lines = [
+        r for r in caplog.records if r.levelname == "DEBUG" and ".exec" in r.message
+    ]
     assert debug_phase_lines == []
 
 
@@ -259,8 +297,12 @@ def test_log_node_on_instance(caplog):
 
     class N(Node):
         observation_type = "tool"
-        def exec(self, _): return "api-result"
-        def post(self, s, p, e): s["r"] = e
+
+        def exec(self, _):
+            return "api-result"
+
+        def post(self, s, p, e):
+            s["r"] = e
 
     # Wrapping only this one instance — other N() calls are unaffected
     wrapped = log_node(N())
@@ -280,8 +322,11 @@ def test_log_node_instance_does_not_affect_other_instances(caplog):
     caplog.set_level(stdlog.INFO)
 
     class N(Node):
-        def exec(self, _): return "x"
-        def post(self, s, p, e): s["r"] = e
+        def exec(self, _):
+            return "x"
+
+        def post(self, s, p, e):
+            s["r"] = e
 
     wrapped = log_node(N())
     wrapped.run({})
@@ -297,6 +342,7 @@ def test_log_node_instance_does_not_affect_other_instances(caplog):
 # trace_node — single-node tracing (no-op without Langfuse credentials)
 # ---------------------------------------------------------------------------
 
+
 def test_trace_node_no_op_without_langfuse():
     from pocketflow_observe import is_enabled, trace_node
 
@@ -304,8 +350,11 @@ def test_trace_node_no_op_without_langfuse():
 
     @trace_node(observation_type="retriever")
     class N(Node):
-        def exec(self, _): return "docs"
-        def post(self, s, p, e): s["r"] = e
+        def exec(self, _):
+            return "docs"
+
+        def post(self, s, p, e):
+            s["r"] = e
 
     # Must not crash, must still run normally
     shared = {}
@@ -318,7 +367,8 @@ def test_trace_node_sets_observation_type_on_class():
 
     @trace_node(observation_type="guardrail")
     class N(Node):
-        def exec(self, _): return None
+        def exec(self, _):
+            return None
 
     # The decorator sets the class attribute so the normal resolver picks it up
     assert N.observation_type == "guardrail"
@@ -328,8 +378,11 @@ def test_trace_node_on_instance():
     from pocketflow_observe import trace_node
 
     class N(Node):
-        def exec(self, _): return "x"
-        def post(self, s, p, e): s["r"] = e
+        def exec(self, _):
+            return "x"
+
+        def post(self, s, p, e):
+            s["r"] = e
 
     wrapped = trace_node(N(), observation_type="tool")
     shared = {}
@@ -344,8 +397,11 @@ def test_log_node_and_trace_node_stack():
     @log_node
     @trace_node(observation_type="agent")
     class N(Node):
-        def exec(self, _): return "ok"
-        def post(self, s, p, e): s["r"] = e
+        def exec(self, _):
+            return "ok"
+
+        def post(self, s, p, e):
+            s["r"] = e
 
     shared = {}
     N().run(shared)
@@ -355,10 +411,6 @@ def test_log_node_and_trace_node_stack():
 # ---------------------------------------------------------------------------
 # _init_langfuse — warning tests
 # ---------------------------------------------------------------------------
-
-import logging
-
-from pocketflow_observe.tracing import _init_langfuse
 
 
 def test_init_langfuse_disabled_by_env(monkeypatch, caplog):

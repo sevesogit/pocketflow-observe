@@ -13,6 +13,7 @@ from typing import Any, Optional
 try:
     from rich.console import Console
     from rich.logging import RichHandler
+
     _HAS_RICH = True
 except ImportError:
     _HAS_RICH = False
@@ -60,10 +61,17 @@ class LoggerWrapper:
         self._log = logging.getLogger(name)
 
     # pass-through
-    def debug(self, m: str, *a: Any, **kw: Any) -> None: self._log.debug(m, *a, **kw)
-    def info(self, m: str, *a: Any, **kw: Any) -> None: self._log.info(m, *a, **kw)
-    def warning(self, m: str, *a: Any, **kw: Any) -> None: self._log.warning(m, *a, **kw)
-    def error(self, m: str, *a: Any, **kw: Any) -> None: self._log.error(m, *a, **kw)
+    def debug(self, m: str, *a: Any, **kw: Any) -> None:
+        self._log.debug(m, *a, **kw)
+
+    def info(self, m: str, *a: Any, **kw: Any) -> None:
+        self._log.info(m, *a, **kw)
+
+    def warning(self, m: str, *a: Any, **kw: Any) -> None:
+        self._log.warning(m, *a, **kw)
+
+    def error(self, m: str, *a: Any, **kw: Any) -> None:
+        self._log.error(m, *a, **kw)
 
     # node lifecycle
     def node_start(self, name: str, obs_type: str = "span") -> None:
@@ -93,9 +101,7 @@ class LoggerWrapper:
         )
 
     def flow_error(self, name: str, exc: Exception) -> None:
-        self._log.error(
-            f"[red]╰─ flow[/] [bold]{name}[/] failed: {type(exc).__name__}: {exc}"
-        )
+        self._log.error(f"[red]╰─ flow[/] [bold]{name}[/] failed: {type(exc).__name__}: {exc}")
 
 
 def get_logger(name: str = "pocketflow_observe") -> LoggerWrapper:

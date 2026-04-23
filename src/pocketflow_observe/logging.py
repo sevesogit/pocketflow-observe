@@ -142,6 +142,7 @@ def log_flow(
 # per-node run wrappers
 # ---------------------------------------------------------------------------
 
+
 def _run_with_logging_sync(
     node: Any,
     shared: Dict[str, Any],
@@ -200,6 +201,7 @@ async def _run_with_logging(
 # phase-level debug logging (opt-in via capture_phases=True)
 # ---------------------------------------------------------------------------
 
+
 def _wrap_phases_for_logging(node: Any, name: str, is_async: bool = False) -> None:
     """Transiently wrap prep/exec/post so their return values hit DEBUG logs."""
 
@@ -213,15 +215,19 @@ def _wrap_phases_for_logging(node: Any, name: str, is_async: bool = False) -> No
 
         def make_wrapper(orig, phase):
             if is_async:
+
                 async def w(*args, **kwargs):
                     result = await orig(*args, **kwargs)
                     _log.node_phase(name, phase, result)
                     return result
+
                 return w
+
             def w(*args, **kwargs):
                 result = orig(*args, **kwargs)
                 _log.node_phase(name, phase, result)
                 return result
+
             return w
 
         setattr(node, method_name, make_wrapper(original, method_name))
@@ -238,6 +244,7 @@ def _unwrap_phases(node: Any) -> None:
 # ---------------------------------------------------------------------------
 # log_node — observe a single node, without needing a Flow
 # ---------------------------------------------------------------------------
+
 
 def log_node(
     target: Any = None,
@@ -290,10 +297,7 @@ def log_node(
 
 def _looks_like_node_instance(obj: Any) -> bool:
     """Heuristic: does this object look like a pocketflow Node instance?"""
-    return (
-        not isinstance(obj, type)
-        and (hasattr(obj, "_run") or hasattr(obj, "_run_async"))
-    )
+    return not isinstance(obj, type) and (hasattr(obj, "_run") or hasattr(obj, "_run_async"))
 
 
 def _wrap_node_class(cls: Type, show_types: bool, capture_phases: bool) -> Type:
@@ -316,9 +320,7 @@ def _wrap_node_class(cls: Type, show_types: bool, capture_phases: bool) -> Type:
 
         def wrapped_sync(self: Any, shared: Dict[str, Any]) -> Any:
             bound = lambda s: original_sync(self, s)  # noqa: E731
-            return _run_with_logging_sync(
-                self, shared, bound, show_types, capture_phases
-            )
+            return _run_with_logging_sync(self, shared, bound, show_types, capture_phases)
 
         cls._run = wrapped_sync  # type: ignore[attr-defined]
 
@@ -345,8 +347,6 @@ def _wrap_node_instance(node: Any, show_types: bool, capture_phases: bool) -> No
         original_sync = node._run
 
         def wrapped_sync(shared: Dict[str, Any]) -> Any:
-            return _run_with_logging_sync(
-                node, shared, original_sync, show_types, capture_phases
-            )
+            return _run_with_logging_sync(node, shared, original_sync, show_types, capture_phases)
 
         node._run = wrapped_sync
