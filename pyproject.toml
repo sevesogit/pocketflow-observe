@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pocketflow-observe"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Decorator-based logging and Langfuse tracing for PocketFlow."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -71,6 +71,10 @@ Issues = "https://github.com/sevesogit/pocketflow-observe/issues"
 # ----------------------------------------------------------------------------
 # Build config
 # ----------------------------------------------------------------------------
+
+[tool.hatch.version]
+source = "regex"
+path = "src/pocketflow_observe/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pocketflow_observe"]

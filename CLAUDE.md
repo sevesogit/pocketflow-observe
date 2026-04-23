@@ -37,7 +37,7 @@ uv run ruff check src tests  # lint
 
 ## Versioning
 
-- Single source of truth: `version` field in `pyproject.toml` (line 9) and `__version__` in `__init__.py` (line 21) — keep them in sync.
+- Single source of truth: `__version__` in `src/pocketflow_observe/__init__.py`. `pyproject.toml` reads it dynamically via hatchling.
 - Merging a version bump to `main` auto-creates a git tag via `.github/workflows/auto-tag.yml`.
 - The tag triggers the publish job in `.github/workflows/ci.yml`.
 
